@@ -8,25 +8,53 @@
 import SwiftUI
 import SwiftData
 
+enum AppMode {
+    case none
+    case swiftUI
+    case uikit
+}
+
+class AppState: ObservableObject {
+    @Published var mode: AppMode = .none
+}
+
 @main
 struct PuraProjectApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
+    @StateObject var state: AppState = AppState()
+    @State var showModeSelection: Bool = false
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            currentView
+                .environmentObject(state)
+                .onShake {
+                    if state.mode != .none {
+                        showModeSelection = true
+                    }
+                }
+                .confirmationDialog("Switch Modes?", isPresented: $showModeSelection) {
+                    Button("Switch Mode to \(state.mode == .swiftUI ? "UIKit" : "SwiftUI")") {
+                        withAnimation {
+                            if state.mode == .swiftUI {
+                                state.mode = .uikit
+                            } else {
+                                state.mode = .swiftUI
+                            }
+                        }
+                    }
+                }
         }
-        .modelContainer(sharedModelContainer)
+    }
+    
+    var currentView: some View {
+        Group {
+            switch state.mode {
+            case .none:
+                BaseView()
+            case .swiftUI:
+                SearchView()
+            case .uikit:
+                UIKitWrapper()
+            }
+        }
     }
 }
